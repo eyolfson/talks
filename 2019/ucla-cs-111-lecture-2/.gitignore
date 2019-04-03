@@ -1,0 +1,17 @@
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.nav
+*.out
+*.pdf
+*.snm
+*.toc
+*.vrb
+*.xdv
+
+myalloc.o
+myalloc.so
+alloc_test
+hello_world_c
+atexit_example
