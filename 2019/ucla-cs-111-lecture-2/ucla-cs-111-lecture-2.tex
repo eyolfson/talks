@@ -69,7 +69,7 @@
     \node [node distance=0, right=of cc-logo, xshift=-0.5em, yshift=-0.45em]
           {BY-SA 4.0};
     \node [anchor=south east, inner sep=2mm] at (\paperwidth, 0)
-          {\texttt{0.1.2}};
+          {\texttt{1.0.0}};
     \node [anchor=south, inner sep=2mm] at ($(\paperwidth / 2, 0)$)
           {\insertdate};
   \end{tikzpicture}
@@ -255,7 +255,7 @@ exit_group(0)                           = ?
     \begin{itemize}
       \item A file descriptor to write bytes to
       \item An address to contiguous sequence of bytes
-      \item How many writes to write from the sequence
+      \item How many bytes to write from the sequence
     \end{itemize}
     
     \vspace{1em}
@@ -293,12 +293,12 @@ exit_group(0)                           = ?
   \begin{frame}[fragile]
     \frametitle{Instructions for ``Hello world'', Using the Linux x86-64 ABI}
 
-    Plug in the next 46 bytes into a dissembler, such as:
+    Plug in the next 46 bytes into a disassembler, such as:
     \url{https://onlinedisassembler.com/}
 
     \vspace{2em}
 
-    Our dissaembled instructions:
+    Our disassembled instructions:
     \begin{lstlisting}[basicstyle=\small\ttfamily]
 mov rax,0x1
 mov rdi,0x1
@@ -704,7 +704,7 @@ int main(int argc, char **argv)
     \begin{itemize}
       \item Statically linking prevents re-using libraries, commonly used
             libraries have many duplicates
-      \item Any updates to a statically library requires the executable to be
+      \item Any updates to a static library requires the executable to be
             recompiled
     \end{itemize}
 
@@ -836,7 +836,7 @@ Call to free(0x55c12aa40260)
   \begin{frame}
     \frametitle{Abstraction Example: File Descriptors}
 
-    File descriptor are just a number and may used to represent:
+    File descriptors are just a number and may used to represent:
     \begin{itemize}
       \item Regular files
       \item Directories
