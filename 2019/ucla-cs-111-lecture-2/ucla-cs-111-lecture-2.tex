@@ -70,7 +70,7 @@
     \node [node distance=0, right=of cc-logo, xshift=-0.5em, yshift=-0.45em]
           {BY-SA 4.0};
     \node [anchor=south east, inner sep=2mm] at (\paperwidth, 0)
-          {\texttt{0.1.0}};
+          {\texttt{0.1.1}};
     \node [anchor=south, inner sep=2mm] at ($(\paperwidth / 2, 0)$)
           {\insertdate};
   \end{tikzpicture}
@@ -129,9 +129,9 @@
 
     \vspace{2em}
 
-    Followed by a byte signifying 32 or 64 bit
+    Followed by a byte signifying 32 or 64 bit architectures
 
-    \hspace{1em} then a byte for little or big endian
+    \hspace{1em} then a byte signifying little or big endian
   \end{frame}
 
   \begin{frame}
@@ -143,8 +143,7 @@
 
     Contains the following:
     \begin{itemize}
-      \item Information about the machine this executable runs on (e.g., the
-            ISA)
+      \item Information about the machine (e.g. the ISA)
       \item The entry point of the program
       \item Any \structure{program headers} (required for executables)
       \item Any \structure{section headers} (required for libraries)
@@ -152,7 +151,7 @@
 
     \vspace{2em}
 
-    It's 64 bytes, so we still have to account for 114 more.
+    The header is 64 bytes, so we still have to account for 114 more.
   \end{frame}
 
   \begin{frame}[fragile]
@@ -188,7 +187,7 @@ ELF Header:
     Tells the operating system how to load the executable:
 
     \begin{itemize}
-      \item Which type?
+      \item Which type? Examples:
         \begin{itemize}
           \item Load directly into memory
           \item Use dynamic linking (libraries)
@@ -322,8 +321,8 @@ syscall
 
     \vspace{1em}
 
-    \hspace{1em} Low level tip: for letters bit 5 is \texttt{0} for capital
-    letters, \texttt{1} for lower case (values differ by 32)
+    \hspace{1em} Low level tip for letters: bit 5 is \texttt{0} for upper case,
+    and \texttt{1} for lower case (values differ by 32)
 
     \vspace{2em}
 
@@ -331,8 +330,8 @@ syscall
     C does...
 
     \vspace{2em}
-    Can you already spot a difference between in the string for our example
-    compared to C?
+    Can you already spot a difference between strings in our example compared to
+    C?
   \end{frame}
 
   \begin{frame}[fragile]
@@ -362,9 +361,15 @@ int main(int argc, char **argv)
     \begin{tikzpicture}[>=stealth']
       \draw [solarizedBlue, dashed, thick] (0,0) -- ($(\textwidth - 3pt, 0)$);
       \node [solarizedBlue, anchor=south east] at ($(\textwidth - 3pt, 0)$)
-            {User space};
+            (user) {User space};
       \node [solarizedBlue, anchor=north east] at ($(\textwidth - 3pt, 0)$)
-            {Kernel space};
+            (kernel) {Kernel space};
+      \node [anchor=south east, yshift=-0.2em, text width=5em, align=center]
+            at (user.north east)
+            {\scriptsize Ring 3\\\vspace{-0.5em}instructions};
+      \node [anchor=north east, yshift=0.5em, text width=5em, align=center]
+            at (kernel.south east)
+            {\scriptsize Ring 0\\\vspace{-0.5em}instructions};
 
       \node [draw, anchor=north west, yshift=-2em] (syscalls) at (0,0)
             {System calls (335 total) e.g. \texttt{open}, \texttt{read},
@@ -481,13 +486,13 @@ exit_group(0)                           = ?
   \begin{frame}
     \frametitle{System Calls are Rare in C}
 
-    Mostly you'll be using calls from the C standard library instead
+    Mostly you'll be using functions from the C standard library instead
 
     \vspace{1em}
 
     Most system calls have corresponding function calls in C, but may:
     \begin{itemize}
-      \item Sets \texttt{errno}
+      \item Set \texttt{errno}
       \item Buffer reads and writes (reduce the number of system calls)
       \item Simplify interfaces (function combines two system calls)
       \item Add new features
@@ -495,19 +500,19 @@ exit_group(0)                           = ?
 
     \vspace{1em}
 
-    Note: system calls are much more expensive than C calls (need to enter
-    kernel space)
+    Note: system calls are much more expensive than C function calls (need to
+    enter kernel space)
   \end{frame}
 
   \begin{frame}[fragile]
     \frametitle{System Call vs C Example: \texttt{exit}}
 
-    For an \texttt{exit} (or \texttt{exit\_group}) system call, the program
+    For an \texttt{exit} (or \texttt{exit\_group}) system call: the program
     stops at that point
 
     \vspace{1em}
 
-    For \texttt{exit} in C, there's a feature to register functions to call
+    For \texttt{exit} in C there's a feature to register functions to call
     on program exit: \texttt{atexit}
 
     \vspace{1em}
@@ -581,7 +586,8 @@ int main(int argc, char **argv)
     \begin{itemize}
       \item Each application has to have exclusive access to a region of
             physical memory
-      \item Any libraries cannot change size, addresses for libraries are fixed
+      \item Any libraries cannot change size since addresses for libraries need
+            to be fixed
     \end{itemize}
 
     \vspace{2em}
@@ -640,7 +646,7 @@ int main(int argc, char **argv)
     The C standard library is a dynamic library (\texttt{.so}), like any other
     on the system
 
-    \hspace{1em} Basically a collection of \texttt{.o} files, with function
+    \hspace{1em} Basically a collection of \texttt{.o} files containing function
     definitions
 
     \vspace{1em}
@@ -690,7 +696,7 @@ int main(int argc, char **argv)
 
     Another option is to statically link your code
 
-    \hspace{1em} Basically includes the \texttt{.o} files directly into the
+    \hspace{1em} Basically copies the \texttt{.o} files directly into the
     executable
 
     \vspace{2em}
@@ -806,6 +812,29 @@ Call to free(0x55c12aa40260)
   \end{frame}
 
   \begin{frame}
+    \frametitle{Detecting Memory Leaks}
+
+    \texttt{valgrind} is another useful tool to detect memory leaks from
+    \texttt{malloc} and \texttt{free}
+
+    \hspace{1em} Usage: \texttt{valgrind <executable>}
+
+    \vspace{1em}
+
+    Here's a note from the \texttt{man} pages regarding what we saw:
+
+    \textit{The GNU C library (\texttt{libc.so}), which is used by all programs,
+      may allocate memory for its own uses. Usually it doesn't bother to free
+      that memory when the program ends—there would be no point, since the Linux
+      kernel reclaims all process resources when a process exits anyway, so it
+      would just slow things down.}
+
+    \vspace{1em}
+
+    \structure{Note: this does not excuse you from not calling \texttt{free}!}
+  \end{frame}
+
+  \begin{frame}
     \frametitle{Abstraction Example: File Descriptors}
 
     File descriptor are just a number and may used to represent:
@@ -847,16 +876,49 @@ Call to free(0x55c12aa40260)
     \end{itemize}
   \end{frame}
 
+  \begin{frame}[fragile]
+    \frametitle{Checking Open File Descriptors on Linux}
+
+    \texttt{/proc/<PID>/fd} \hspace{0.5em} is a directory containing all open
+    file descriptors for a process
+
+    \texttt{ps x} \hspace{0.5em} command shows a list of processes matching your
+    user (lots of other flags)
+
+    \vspace{1em}
+
+    A terminal emulator may give the output:
+    \begin{lstlisting}[basicstyle=\small\ttfamily]
+> ls -l /proc/21151/fd
+0 -> /dev/tty1
+1 -> /dev/tty1
+2 -> /dev/tty1
+    \end{lstlisting}
+
+    \vspace{2em}
+
+    \texttt{lsof <file>} \hspace{0.5em} shows you what processes have the file
+    open
+
+    \hspace{2em} For example, processes using C: \hspace{0.5em}
+    \texttt{lsof /lib/libc.so.6}
+  \end{frame}
+
   \begin{frame}
     \frametitle{Lessons Learned Today}
 
     \begin{itemize}
       \item Basic executable format (ELF files)
+      \vspace{1em}
       \item Difference between API and ABI
+      \vspace{1em}
       \item How to find all system calls
+      \vspace{1em}
       \item Virtual memory and why it's needed
+      \vspace{1em}
       \item Dynamic libraries and a comparison to static libraries
-      \item Standard file descriptors
+      \vspace{1em}
+      \item File descriptors and standard conventions
     \end{itemize}
   \end{frame}
 \end{document}

@@ -17,6 +17,34 @@ malloc(size_t size)
   return ret;
 }
 
+void *
+realloc(void *ptr, size_t size)
+{
+  void* (*realloc_ptr)(void *, size_t);
+  *(void**) (&realloc_ptr) = dlsym(RTLD_NEXT, "realloc");
+  void *ret = (*realloc_ptr)(ptr, size);
+
+  char buf[200];
+  int buf_size = sprintf(buf, "Call to realloc(%p, %lu) = %p\n", ptr, size, ret);
+  write(1, buf, buf_size);
+
+  return ret;
+}
+
+void *
+calloc(size_t nmemb, size_t size)
+{
+  void* (*calloc_ptr)(size_t, size_t);
+  *(void**) (&calloc_ptr) = dlsym(RTLD_NEXT, "calloc");
+  void *ret = (*calloc_ptr)(nmemb, size);
+
+  char buf[200];
+  int buf_size = sprintf(buf, "Call to calloc(%lu, %lu) = %p\n", nmemb, size, ret);
+  write(1, buf, buf_size);
+
+  return ret;
+}
+
 void
 free(void *ptr)
 {
