@@ -69,7 +69,7 @@
     \node [node distance=0, right=of cc-logo, xshift=-0.5em, yshift=-0.45em]
           {BY-SA 4.0};
     \node [anchor=south east, inner sep=2mm] at (\paperwidth, 0)
-          {\texttt{1.0.1}};
+          {\texttt{1.1.0}};
     \node [anchor=south, inner sep=2mm] at ($(\paperwidth / 2, 0)$)
           {\insertdate};
   \end{tikzpicture}
@@ -742,6 +742,127 @@ int main(int argc, char **argv)
 
     Note: this is OK if the dynamic library never exposes the fields of a
     \texttt{struct}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{C Uses a Consistent ABI for \texttt{struct}s}
+
+    \texttt{struct}s are laid out in memory with the fields matching the
+    declaration order
+
+    \hspace{1em} C compilers ensure the ABI of \texttt{struct}s are the
+    consistent for an architecture
+
+    \vspace{2em}
+
+    Consider the following structures:
+
+    \vspace{1em}
+
+    \begin{columns}
+      \begin{column}{0.4\textwidth}
+        Library v1:
+        \begin{lstlisting}[basicstyle=\small\ttfamily]
+struct point {
+  int y;
+  int x;
+};
+        \end{lstlisting}
+      \end{column}
+      \begin{column}{0.4\textwidth}
+        Library v2:
+        \begin{lstlisting}[basicstyle=\small\ttfamily]
+struct point {
+  int x;
+  int y;
+};
+        \end{lstlisting}
+      \end{column}
+    \end{columns}
+
+    \vspace{1em}
+
+    For Library v1 the \texttt{x} field is offset by 4 bytes from the start of
+    \texttt{struct point}'s base
+
+    \hspace{1em} For Library v2 it is offset by 0 bytes, and this difference
+    will cause problems
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Our Code Should Always Print 3, then 9}
+
+    \begin{lstlisting}[basicstyle=\small\ttfamily]
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "libpoint.h"
+
+int main(int argc, char **argv)
+{
+  struct point *p = malloc(sizeof(struct point));
+  p->x = 3;
+  p->y = 4;
+  printf("p.x = %d\n", p->x);
+  squareX(p);
+  printf("p.x = %d\n", p->x);
+  return 0;
+}
+    \end{lstlisting}
+
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Mismatached Versions of This Library Causes Unexpected Results}
+
+    The definition of \texttt{sqaureX} in both libraries is:
+    \begin{lstlisting}[basicstyle=\small\ttfamily]
+void squareX(struct point *p) {
+  p->x *= p->x;
+}
+    \end{lstlisting}
+
+    \vspace{1em}
+
+    In v1 of the library, this code squares the \texttt{int} at offset 4
+
+    \hspace{1em} v2 squares the \texttt{int} at offset 0
+
+    \vspace{1em}
+
+    If we compile our code against v1, all our \texttt{x}
+    accesses are to offset 4 of the \texttt{struct}
+
+    \hspace{1em} Compiling against v2 changes all our \texttt{x} accesses to
+    offset 0
+
+    \vspace{2em}
+    Compiling against a version of the library and using another
+    causes unexpected results:
+
+    \hspace{1em} It will always print 3 followed by 3
+
+    \hspace{2em} Matching the versions prints 3 followed 9, as expected
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{Try the Previous Example}
+
+    It uses the \texttt{LD\_LIBRARY\_PATH} trick (mentioned again later) to
+    simulate a library update
+
+    \vspace{2em}
+
+    Run the following commands to see for yourself:
+    \begin{lstlisting}[commentstyle={}]
+git clone https://github.com/eyolfson/talks
+cd talks/2019/ucla-cs-111-lecture-2
+make
+make run_my_code_compiled_with_point_v1_with_point_v1
+make run_my_code_compiled_with_point_v2_with_point_v1
+make run_my_code_compiled_with_point_v1_with_point_v2
+make run_my_code_compiled_with_point_v2_with_point_v2
+    \end{lstlisting}
   \end{frame}
 
   \begin{frame}

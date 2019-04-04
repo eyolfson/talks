@@ -15,3 +15,9 @@ myalloc.so
 alloc_test
 hello_world_c
 atexit_example
+my_code_compiled_with_point_v1
+my_code_compiled_with_point_v2
+libpoint_v1/libpoint.o
+libpoint_v1/libpoint.so
+libpoint_v2/libpoint.o
+libpoint_v2/libpoint.so
