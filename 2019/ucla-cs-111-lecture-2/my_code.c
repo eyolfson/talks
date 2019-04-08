@@ -11,5 +11,6 @@ int main(int argc, char **argv)
   printf("p.x = %d\n", p->x);
   squareX(p);
   printf("p.x = %d\n", p->x);
+  free(p);
   return 0;
 }
