@@ -65,6 +65,14 @@
     \node (author) [scale=1.5, align=left]
           at (\paperwidth / 3, \paperheight / 3)
           {{\bfseries \insertauthor}};
+
+    \node [xshift=-4em, yshift=-4em]
+          at (\paperwidth, \paperheight)
+          {\includegraphics[scale=0.3]{../../image/acm-artifact-reusable.jpg}};
+    \node [xshift=-4em, yshift=-11em]
+          at (\paperwidth, \paperheight)
+          {\includegraphics[scale=0.3]{../../image/acm-artifact-available.jpg}};
+
     \node (author2) [scale=1.5, align=left]
           at (\paperwidth * 2 / 3, \paperheight / 3)
           {Patrick Lam};
@@ -96,7 +104,7 @@
   \setcounter{framenumber}{0}
 
   \begin{frame}[fragile]
-    \frametitle{Immutability}
+    \frametitle{Immutability: Things Don't Change}
 
     Some languages allow developers to specify immutability using type
     qualifiers
@@ -113,22 +121,21 @@ public:
 
     \vspace{4em}
 
-    \structure{How do developers use immutable references?}
+    \structure{Our question: how do developers use immutable references?}
   \end{frame}
 
   \begin{frame}
     \frametitle{We Need to Pick a Language}
 
-    C++ has immutability (using \texttt{const}) and a large amount code
-    available
+    C++ has immutability (using \texttt{const}) and much code available
 
     \vspace{1em}
 
-    \hspace{1em} Guideline: \structure{use \texttt{const} wherever possible}
+    \hspace{1em} CppCoreGuideline: \structure{use \texttt{const} wherever possible}
 
     \vspace{4em}
 
-    Not clear that \texttt{const} is useful barring a user study
+    Not clear that \texttt{const} is useful without a user study
 
     \vspace{1em}
 
@@ -136,7 +143,7 @@ public:
   \end{frame}
 
   \begin{frame}[fragile]
-    \frametitle{We Should Add \texttt{const} to Methods Without Writes}
+    \frametitle{Add \texttt{const} to Methods Without Writes}
 
     \begin{columns}
       \begin{column}{0.4\textwidth}
@@ -167,7 +174,7 @@ private:
 
         \vspace{4em}
 
-        \structure{No tools to assist in adding \texttt{const} to methods}
+        \structure{No existing tools to assist in adding \texttt{const} to methods}
       \end{column}
     \end{columns}
   \end{frame}
@@ -183,7 +190,8 @@ private:
   \end{frame}
 
   \begin{frame}
-    \frametitle{Our Tool Checks Whether Methods Should Include \texttt{const}}
+    \frametitle{Our \texttt{const} Checker Tool Reports Whether Methods Should
+                Include \texttt{const}}
 
     We manually inspect code with the help of our tool
 
@@ -277,19 +285,17 @@ public:
   \begin{frame}
     \frametitle{We Ran Our Tool on 7 Large to Medium Projects}
 
-    LLVM
-
-    OpenCV
-
-    Protobuf
-
-    fish
-
-    Mosh
-
-    Ninja
-
-    libsequence
+    \begin{center}\begin{tabular}{l r r r}
+                  & kLOC            & Classes & Methods \\
+      \hline
+      LLVM        & $\approx$ 3 200 &  10 518 &  55 229 \\
+      OpenCV      &           1 167 &   2 220 &   6 624 \\
+      Protobuf    &             625 &     407 &   1 813 \\
+      fish        &             112 &     129 &     299 \\
+      Mosh        &              14 &      74 &     302 \\
+      Ninja       &              13 &      36 &     165 \\
+      libsequence &              18 &      33 &     199 \\
+    \end{tabular}\end{center}
   \end{frame}
 
   \begin{frame}
@@ -301,7 +307,7 @@ public:
 
     \vspace{2em}
 
-    \begin{tabular}{l r r}
+    \begin{center}\begin{tabular}{l r r}
                   & Immutable (\%) & Unannotated (\%) \\
       \hline
       LLVM        & 10 &  9 \\
@@ -311,7 +317,7 @@ public:
       Mosh        &  0 &  0 \\
       Ninja       &  0 & 12 \\
       libsequence & 50 &  2 \\
-    \end{tabular}
+    \end{tabular}\end{center}
   \end{frame}
 
   \begin{frame}
@@ -323,7 +329,7 @@ public:
 
     \vspace{2em}
 
-    \begin{tabular}{l r r}
+    \begin{center}\begin{tabular}{l r r}
                   & Immutable (\%) & All-Mutating (\%) \\
       \hline
       LLVM        & 11 & 4 \\
@@ -333,7 +339,7 @@ public:
       Mosh        &  0 & 0 \\
       Ninja       &  0 & 0 \\
       libsequence & 50 & 0 \\
-    \end{tabular}
+    \end{tabular}\end{center}
   \end{frame}
 
   \begin{frame}
@@ -492,7 +498,7 @@ public:
 
     \vspace{1em}
     
-    \begin{tabular}{l r}
+    \begin{center}\begin{tabular}{l r}
       LLVM         & 52\\
       OpenCV       & 53\\
       Protobuf     & 63 \\
@@ -500,7 +506,7 @@ public:
       Mosh         & 51 \\
       Ninja        & 28 \\
       libsequence  & 93 \\
-    \end{tabular}
+    \end{tabular}\end{center}
   \end{frame}
 
   \begin{frame}
@@ -508,13 +514,13 @@ public:
 
     Immutable classes represent around 12\% of classes
 
-    \hspace{1em} All-mutating classes are rare
+    \hspace{1em} All-mutating classes are rare (4\%)
 
     \vspace{2em}
 
     Most classes contain a mixture of \texttt{const} and mutable methods
 
-    \hspace{1em} Overall, half these methods are \texttt{const}
+    \hspace{1em} Overall, half these methods are \texttt{const} (52\% median)
   \end{frame}
 
   \begin{frame}
@@ -528,7 +534,7 @@ public:
 
     \vspace{2em}
 
-    Simple to add more projects
+    It's simple to add more projects
   \end{frame}
 
   \begin{frame}
@@ -540,7 +546,7 @@ public:
 
     \vspace{1em}
 
-    The remaining 88\% of classes contain a mixture
+    The remaining 84\% of classes contain a mixture
 
     \vspace{1em}
 
@@ -550,7 +556,8 @@ public:
 
     Developers do label the majority of \texttt{const} methods
 
-    \hspace{1em} Our tool showed them missing 6\% (at minimum)
+    \hspace{1em} Our tool showed them missing 12\% of mutable methods (at
+                 minimum)
 
     \vspace{1em}
 
