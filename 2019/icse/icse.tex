@@ -140,7 +140,8 @@ public:
 
     \vspace{1em}
 
-    \hspace{1em} Developers do not agree on the definition of immutability
+    \hspace{1em} Currently \texttt{const} only aids developer understanding,
+    it's not used for optimizations
   \end{frame}
 
   \begin{frame}[fragile]
@@ -151,7 +152,7 @@ public:
         \begin{lstlisting}
 class RNG {
 public:
-int32_t getInt() {
+  int32_t getInt() {
     state = /* ... */;
     return state;
   }
@@ -175,31 +176,25 @@ private:
 
         \vspace{4em}
 
-        \structure{No existing tools to assist in adding \texttt{const} to
-                   methods}
+        \structure{No existing tools to assist in adding \texttt{const}}
       \end{column}
     \end{columns}
   \end{frame}
 
   \begin{frame}
-    \frametitle{We Focus on Classes and Methods}
+    \frametitle{We Focus on Classes and Methods with Our \texttt{const} Checker Tool}
 
     How do developers use \texttt{const}?
+    
+    \vspace{1em}
+    \hspace{1em} We manually inspect code with the help of our tool
 
-    \vspace{2em}
+    \vspace{4em}
 
     How well are developers using \texttt{const}?
-  \end{frame}
 
-  \begin{frame}
-    \frametitle{Our \texttt{const} Checker Tool Reports Whether Methods Should
-                Include \texttt{const}}
-
-    We manually inspect code with the help of our tool
-
-    \vspace{2em}
-
-    Our tool reports methods with deep concrete immutability
+    \vspace{1em}
+    \hspace{1em} Our tool reports methods with deep concrete immutability
   \end{frame}
 
   \begin{frame}
@@ -310,7 +305,7 @@ public:
     \vspace{2em}
 
     \begin{center}\begin{tabular}{l r r}
-                  & Immutable (\%) & Unannotated (\%) \\
+                  & All \texttt{const} (\%) & Unannotated (\%) \\
       \hline
       LLVM        & 10 &  9 \\
       OpenCV      &  6 &  8 \\
@@ -342,6 +337,22 @@ public:
       Ninja       &  0 & 0 \\
       libsequence & 50 & 0 \\
     \end{tabular}\end{center}
+  \end{frame}
+
+  \begin{frame}[fragile]
+    \frametitle{OpenCV All-\texttt{const} Classes Were Not Immutable}
+
+    \begin{lstlisting}
+class _OutputArray {
+public:
+  void assign(/* ... */) const;
+  void clear() const;
+  void create(/* ... */) const;
+  void release() const;
+  bool needed() const;
+  Mat & getMatRef(/* ... */) const;
+};
+    \end{lstlisting}
   \end{frame}
 
   \begin{frame}
@@ -619,7 +630,7 @@ public:
   \end{frame}
 
   \begin{frame}
-    \frametitle{Developers Do Use Immutability, Extenstively}
+    \frametitle{Developers Do Use Immutability, Extensively}
 
     Immutable classes represent around 12\% of classes
 

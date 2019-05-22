@@ -1,0 +1,176 @@
+Motivate more
+- Developer understanding
+- IDE feature
+- Possible optimization
+  - Actually mention the compiler doesn't do anything
+- Instead of writes through fields, say transitive
+- More universal (why we use deep concrete)
+- Mention we don't care about constructor
+
+[Slide 1]
+
+First we need to touch on immutability.
+Immutability, at the highest level, means things don't change.
+In some languages developers can specify immutability using type qualifiers.
+For instance, take this RNG class with two methods: getInt and getSeed.
+As a developer you can have mutable or immutable references to RNG objects.
+The immutable type qualifiers restrict the methods you may call with an immutable reference.
+If I have an immutable reference to an RNG object, I (as a developer) need to mark getSeed as immutable to call it.
+Our goal is to explore how developers use immutable references.
+
+[Slide 2]
+
+To explore of developers use it, we need a language.
+C++ is large and has an immutable type qualifier called const.
+As a benefit, the core C++ guidelines call for using const where ever possible.
+Now, const is a type qualifier, so any errors occur at compile time.
+This makes it impossible to measure it's benefit through mining software repositories.
+Currently in C++, const is only for developers understanding.
+const has no effect on the compilation.
+However, if a compiler could exploit immutable it would enable optimizations.
+The first step though is to see how developer's currently use const.
+
+[Slide 3]
+
+Now let's look at a possible definition of the RNG class, it has two fields state and seed.
+getInt modifies the state field and returns it.
+It's not really a getter, it would probably be better named getNextInt.
+getSeed just returns the seed field.
+Now if no writes to any fields, or through any fields occur, it's immutable.
+This is called deep concrete immutability.
+All developers agree on this, there's other definitions that restrict the scope, or allow some writes (such as caching).
+Now getSeed is marked as const, so a developer can call it with a const reference.
+However, if a developer forgot to mark the method as const there are no tools to assist them.
+
+[Slide 4]
+
+There are other ways to use const in C++ besides added it to methods.
+However, we focused on methods because we were interested to see how developers write const for other developers to use.
+We wanted to see how often they write it.
+const is completely opt in, and one missing const often causes cascading errors.
+Sometimes it's easier just to remove it completely.
+Also it's not clear how developers are doing.
+There are no existing tools for checking whether methods should have const or not, so any additions are manual.
+
+We developed a const checker tool which indicates which methods should have const.
+In addition it collects all of the const usages in a particular codebase.
+With all of the developer-written consts we manually inspect the code to determine whether or not methods (or classes themselves) are actually immutable.
+Recall our tool reports methods with deep concrete immutability, and it's conservative.
+We can use this information to gauge how developers are doing.
+
+[Slide 5]
+
+Our const checker tool analyzes whole codebases.
+This means we only report results for classes whose whole hierarchy is contained within the codebase.
+Otherwise, we would be analyzing code that the developers of the codebase have no control over.
+Our analysis is lightweight, and checks that no writes to any fields, or through fields occurs.
+In other words again, we check for deep immutability.
+We populate the results into a database, both developer written const, and if methods should include
+a const.
+
+[Slide 6]
+
+Going back to the example, getInt writes to a field.
+Our analysis determines this method mutates and would not suggest adding a const.
+The analysis would determine getSeed should have a const.
+Anything our analysis reports a having deep immutability we call easily const-able.
+Note that this class now extends from a base class, our results should be consistent with the class hierarchy.
+
+[Slide 7]
+
+Consider this (contrived) base class for RNG.
+Both methods now just return a constant value.
+Our analysis would determine both methods have deep immutability.
+However, based off the subclass, we wouldn't want to report both as easily const-able.
+Our tool also checks the class hierarchy to determine easily const-able methods.
+If one overriden method is mutable, we wouldn't report any other overriden method as easily const-able even if they have deep immutability.
+In this case our tool would not say getInt is easily const-able
+
+[Slide 8]
+
+We ran const checker on 7 large to medium projects.
+The 3 large projects we chose were LLVM, OpenCV, and Protobuf.
+LLVM (including Clang) is a compiler framework, that we used to write our tool, it's under heavy use.
+OpenCV is a computer vision library, also highly used and a very different domain.
+Protobuf is a set of APIs for serializing data.
+The other 4 projects are medium sized.
+fish is an alternative to bash.
+mosh is an alternative to ssh.
+ninja is an alternative to make.
+Finally, libsequence is a genetic analysis library, mostly consisting of math functions.
+
+[Slide 9]
+
+So our first question was do developers write immutable classes.
+That means all the methods are const.
+A mutable and immutable reference behave the same.
+Some languages support this, or there's a push to include it.
+The opposite side of that are methods that only mutate.
+Immutable references can't call any methods.
+Now classes without any const methods could just be because the developers are lazy, which we call unannotated.
+3 projects have no classes with all const methods, and aside from libsequence and protobuf they're around 6-10%.
+Unannotated are more common, around 8-9%.
+
+[Slide 10]
+
+However, to confirm this we manually inspected these calls.
+All of them for medium sized projects, and we sampled from larger projects.
+We used our tool to assist us on a method-by-method basis.
+We found the number of immutable classes to be about the same.
+However, most of the unannotated methods had at least one method that should be const.
+All mutating methods basically didn't exist.
+Developers do need help.
+
+[Slide 11]
+
+In OpenCV we found the number of immutable classes, compared to all-const, went down.
+This is one example why.
+This OutputArray class has every single method const.
+However from the naming alone we can see that the first 4 methods at least do mutate the array.
+The "needed" method is an accessor, so that should be const.
+The last accessor returns a mutable reference to a field, but this could be debatable on whether they meant that.
+
+[Slide 12]
+
+Without looking at classes, how many methods overall are const?
+On the left side of the vertical line are methods that developers did not include const on.
+On the right side are methods developers added const to.
+The gray indicates the methods our analysis determines are easily const-able.
+Overall there's a high 40% number of const methods.
+Our analysis gets around half of these.
+Of the non-const methods, we found around 12% of them were easily const-able.
+We manually inspected the results of our analysis and found they were indeed const-able.
+
+[Slide 13]
+
+So our easily const-able methods were correct.
+To estimate the number, we assumed all const methods developers wrote were correct and added this to the number of non-const methods we determined as easily const-able.
+libsequence mostly is a math library, which is why the majority of the methods are const.
+ninja mutates a lot of state as a build system, which is why it's low.
+The other projects hover at around the same amount.
+
+[Slide 14]
+
+We found that developers do use immutability.
+The overall average of immutable classes is 12%, which is significant.
+On the other side, all-mutating classes themselves are rare, an average of 4%.
+Most classes contain a mixture of const and mutable methods.
+The distribution is close to 50/50, which 52% of the methods being const.
+
+[Slide 15]
+
+Now our tool is freely available.
+I'd like to thank the artifact review committee.
+Our tool is both available and reusable.
+You can find it at my GitHub URL, or through the ICSE website.
+I made it simple to add additional projects, so please try it out.
+
+[Slide 16]
+
+We found that developers want and use immutability.
+12% of the classes were immutable, however in 3 projects it was 0%.
+Clearly not every project needs immutable classes.
+The remaining 84% of classes contain a mixture of const and non-const methods.
+While developers do a good job at using const in general, there's still room for improvement.
+Recall that all-mutating classes were rare, but unannotated classes were common.
+Developers need better tools, we showed them missing adding const to a minimum of 12% of non-const methods.
