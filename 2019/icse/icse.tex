@@ -46,7 +46,7 @@
   basicstyle=\ttfamily\small,
   language=C++,
   escapeinside={(*@}{@*)},
-  commentstyle={\color{black!35}},
+  commentstyle={\color{black!45}},
 }
 
 \title{How C++ Developers Use Immutability Declarations: An Empirical Study}
@@ -81,17 +81,13 @@
     \node [node distance=0, right=of cc-logo, xshift=-0.5em, yshift=-0.45em]
           {BY-SA 4.0};
     \node [anchor=south east, inner sep=2mm] at (\paperwidth, 0)
-          {\texttt{0.1.0}};
+          {\texttt{1.0.0}};
     \node [anchor=south, inner sep=2mm] at ($(\paperwidth / 2, 0)$)
           {\insertdate};
     \node [node distance=0, below=of author]
           {\includegraphics[scale=0.1]{../../image/ucla-logo.eps}};
-    %% \node [node distance=0, below=of author]
-    %%       {\small UCLA};
     \node [node distance=0, below=of author2, yshift=1.2em]
           {\includegraphics[scale=0.2]{../../image/uwaterloo-logo.eps}};
-    %% \node [node distance=0, below=of author2]
-    %%       {\small University of Waterloo};
   \end{tikzpicture}
 }
 
@@ -111,17 +107,22 @@
     \begin{lstlisting}[xleftmargin=1cm]
 class RNG {
 public:
-  int32_t getInt();
-  int32_t getSeed();
+  int32_t getSeed(); // immutable
+  int32_t getInt();  // possibly immutable?
 };
     \end{lstlisting}
 
     As a developer you can have a mutable or immutable reference to \texttt{RNG}
     objects
 
-    \vspace{4em}
+    \begin{lstlisting}[xleftmargin=1cm]
+/* immutable */ RNG rng;
+rng.getInt(); // allowed?
+    \end{lstlisting}
 
-    \structure{Our question: how do developers use immutable references?}
+    \vspace{2em}
+
+    \structure{Our question: how do developers use immutability?}
   \end{frame}
 
   \begin{frame}
@@ -140,7 +141,7 @@ public:
 
     \vspace{1em}
 
-    \hspace{1em} Currently \texttt{const} only aids developer understanding,
+    \hspace{1em} C++ \texttt{const} only aids developer understanding,
     it's not used for optimizations
   \end{frame}
 
@@ -215,7 +216,7 @@ private:
   \end{frame}
 
   \begin{frame}[fragile]
-    \frametitle{Our Tool Should Report \texttt{getSeed} as \texttt{const}}
+    \frametitle{Our Tool Reports \texttt{getSeed} as \texttt{const}}
 
     \begin{columns}
       \begin{column}{0.4\textwidth}
@@ -296,11 +297,9 @@ public:
   \end{frame}
 
   \begin{frame}
-    \frametitle{We Found Non-Trivial Classes (>3 Methods)}
+    \frametitle{We Study Non-Trivial Classes (>3 Methods)}
 
-    Do developers write immutable classes?
-
-    \hspace{1em} classes that only mutate?
+    Do developers write immutable classes? Classes that only mutate?
 
     \vspace{2em}
 
@@ -318,11 +317,10 @@ public:
   \end{frame}
 
   \begin{frame}
-    \frametitle{Only Mutating Classes are Rare}
+    \frametitle{All-Mutating Classes are Rare}
 
-    We estimated the true number by manual inspection
-
-    \hspace{1em} assisted by our tool (sampling for large projects)
+    We estimated the true number by manual inspection (sampling for large
+    projects)
 
     \vspace{2em}
 
