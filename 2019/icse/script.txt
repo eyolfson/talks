@@ -72,8 +72,6 @@ no control over.
 Our analysis is lightweight, and checks that no writes to any fields, or through
 fields occurs.
 In other words again, we check for deep immutability.
-This is a straightforward analysis, the method bodies in this example are simple.
-For details are in the paper.
 We populate the results into a database, both developer written const, and if
 methods should include a const.
 
@@ -85,6 +83,8 @@ const.
 The analysis would determine getSeed should have a const.
 Anything our analysis reports a having deep immutability we call easily
 const-able.
+This is a straightforward analysis, the method bodies in this example are simple.
+For details are in the paper.
 Note that this class now extends from a base class, our results should be
 consistent with the class hierarchy.
 
@@ -182,7 +182,8 @@ The other projects hover at around the same amount.
 [Slide 14]
 
 We found that developers do use immutability.
-The overall average of immutable classes is 12%, which is significant.
+The overall average of immutable classes is 12%, which is higher than I
+expected.
 On the other side, all-mutating classes themselves are rare, an average of 4%.
 Most classes contain a mixture of const and mutable methods.
 The distribution is close to 50/50, which 52% of the methods being const.

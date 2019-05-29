@@ -153,16 +153,16 @@ rng.getInt(); // allowed?
         \begin{lstlisting}
 class RNG {
 public:
+  int32_t getSeed() const {
+    return seed;
+  }
   int32_t getInt() {
     state = /* ... */;
     return state;
   }
-  int32_t getSeed() const {
-    return seed;
-  }
 private:
-  int32_t state;
   int32_t seed;
+  int32_t state;
 };
         \end{lstlisting}
       \end{column}
@@ -223,12 +223,12 @@ private:
         \begin{lstlisting}
 class RNG : public BaseRNG {
 public:
+  int32_t getSeed() {
+    return seed;
+  }
   int32_t getInt() {
     state = /* ... */;
     return state;
-  }
-  int32_t getSeed() {
-    return seed;
   }
 private:
   int32_t state;
@@ -237,11 +237,11 @@ private:
         \end{lstlisting}
       \end{column}
       \begin{column}{0.5\textwidth}
-        \texttt{getInt} writes to a field
+        \texttt{getSeed} does not write \structure{(easily \texttt{const}-able)}
 
         \vspace{1em}
 
-        \texttt{getSeed} does not \structure{(easily \texttt{const}-able)}
+        \texttt{getInt} writes to a field
 
         \vspace{4em}
 
@@ -257,11 +257,11 @@ private:
         \begin{lstlisting}
 class BaseRNG {
 public:
-  int32_t getInt() {
-    return 4;
-  }
   int32_t getSeed() {
     return 0;
+  }
+  int32_t getInt() {
+    return 4;
   }
 };
         \end{lstlisting}
