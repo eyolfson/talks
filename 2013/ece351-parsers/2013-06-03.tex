@@ -1,0 +1,1295 @@
+\documentclass[aspectratio=169]{beamer}
+
+% Suppress the navigation bar
+\beamertemplatenavigationsymbolsempty
+
+% Change the font
+\usepackage{fontspec}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\setbeamerfont{title}{series=\bfseries}
+\setbeamerfont{frametitle}{series=\bfseries}
+
+% Change the themes
+\usecolortheme[accent=blue, dark]{solarized}
+\useinnertheme{circles}
+\setbeamercolor{item projected}{bg=solarizedRebase0, fg=solarizedRebase03}
+\setbeamercolor{solarizedcolorbox}{bg=solarizedRebase02, fg=solarizedRebase0}
+
+% Custom packages
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\newenvironment{tikztree}[1][3em]{\begin{center}
+\begin{tikzpicture}
+  \tikzstyle{every node}=[draw=solarizedAccent, circle,
+                           minimum size=#1]}{\end{tikzpicture}
+\end{center}}
+
+% Custom title page
+\defbeamertemplate*{title page}{customized}[1][]
+{ 
+  \begin{flushright}
+    {\usebeamerfont{institute}\insertinstitute}
+  \end{flushright}
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title}\inserttitle}
+  \end{beamercolorbox}
+  \begin{flushright}
+    {\usebeamerfont{author}\insertauthor}
+
+    {\usebeamerfont{institute}\insertdate}
+  \end{flushright}
+}
+\title{Parsers}
+\author{Jon Eyolfson}
+\date{June 3, 2013}
+\institute{University of Waterloo}
+
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \titlepage
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Goals}
+
+Formulate a grammar for integer arithmetic\\~\\
+
+Create an AST and interpreter for our grammar
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our Grammar}
+
+Here is our attempt at the grammar without multiplication and division for now:
+\\~\\
+
+\begin{align*}
+T &= \{ +, -, \text{\lstinline{INT}} \}\\
+N &= \{ e \}\\
+S &= e\\
+P &= \begin{cases}e \rightarrow e + e \\
+     e \rightarrow e - e\\
+     e \rightarrow \text{\lstinline{INT}}\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title} \hfill Start AST}
+  \end{beamercolorbox}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Abstract Syntax Trees}
+
+An AST is a tree representation of the input language\\~\\
+
+This tree should only represents the important details of the input\\~\\
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Unimportant Details in Our Grammar}
+
+Our parse trees have the following unimportant details:
+\begin{itemize}
+  \item Rule names
+  \item Brackets (or grouping)\\~\\
+\end{itemize}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our AST Nodes}
+
+\begin{description}
+  \item[\textbf{BinaryExpr}] need to know what operator to use, the left and
+                             right side
+  \item[\textbf{IntegerExpr}] to store the value of an integer\\~\\
+\end{description}
+Both of which are \textbf{Expr} (which is an abstract base class)
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our AST Node Representations}
+
+We will represent our AST nodes as follows:\\~\\
+
+\begin{columns}[onlytextwidth]
+\column{0.5\textwidth}
+
+\centering
+\textbf{BinaryExpr}
+
+\begin{tikztree}[3.5em]
+  \node {\lstinline{op}}
+    child { node {\lstinline[basicstyle=\footnotesize\ttfamily]{left}} }
+    child { node {\lstinline[basicstyle=\footnotesize\ttfamily]{right}} };
+\end{tikztree}
+
+\lstinline{op} is either $+, -, *$ or $/$\\
+\lstinline{left} and \lstinline{right} are \textbf{Exprs}
+
+\column{0.5\textwidth}
+
+\centering
+\textbf{IntegerExpr}
+
+\begin{tikztree}[3.5em]
+  \node {\lstinline{value}};
+\end{tikztree}
+
+\lstinline{value} is an \lstinline{int} (in Java we can pass the regular
+expression matched by the \lstinline{INT} token to \lstinline{Integer.parseInt})
+
+\end{columns}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{AST Question (1)}
+
+If our input is \lstinline{"1 + 2 + 3"} and our parse tree is the following:
+
+\begin{tikztree}  
+  \node {$e$}
+    child { node {$e$} 
+      child { node {$e$} child { node{\lstinline{INT}} }
+      }
+      child { node {$+$} }
+      child { node {$e$} child { node{\lstinline{INT}} }}
+    }
+    child { node {$+$} }
+    child { node {$e$} child { node{\lstinline{INT}} }};
+\end{tikztree}
+
+What is our AST?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{AST Answer (1)}
+
+\begin{tikztree}
+  \node {$+$}
+    child { node {$+$}
+        child { node{\lstinline{1}} }
+        child { node{\lstinline{2}} }
+    }
+    child { node {\lstinline{3}} };
+\end{tikztree}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{AST Question (2)}
+
+Now consider the same input and the following parse tree:
+
+\begin{tikztree}
+  \node {$e$}
+    child { node {$e$} child { node{\lstinline{INT}} }}
+    child { node {$+$} }
+    child { node {$e$} 
+      child { node {$e$} child { node{\lstinline{INT}} }}
+      child { node {$+$} }
+      child { node {$e$} child { node{\lstinline{INT}} }}
+    };
+\end{tikztree}
+
+What is our AST now?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{AST Answer (2)}
+
+\begin{tikztree}
+  \node {$+$}
+    child { node {\lstinline{1}} }
+    child { node {$+$}
+        child { node{\lstinline{2}} }
+        child { node{\lstinline{3}} }
+    };
+\end{tikztree}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title} End AST \hfill Start
+      Interpreter}
+  \end{beamercolorbox}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our Own Interpreter}
+
+An interpreter executes the AST directly\\~\\
+
+Our result should be equivalent to following all the mathematical rules for
+the input\\~\\
+
+The rules in this case is the DMAS part of BEDMAS
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Our Interpreter Implementation}
+
+\begin{lstlisting}[backgroundcolor=\color{solarizedRebase02}]
+public int eval(BinaryExpr e) {
+  switch (e.op) {
+    case '*':
+      return eval(e.left) * eval(e.right);
+    case '/':
+      return eval(e.left) / eval(e.right);
+    case '+':
+      return eval(e.left) + eval(e.right);
+    case '-':
+      return eval(e.left) - eval(e.right);
+  }
+}
+public int eval(IntegerExpr i) {
+  return i.value;
+}
+\end{lstlisting}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{AST Evaluation (1)}
+
+We call \lstinline{eval} with the root node, what is the result?
+
+\begin{columns}[onlytextwidth]
+\column{0.5\textwidth}
+\begin{tikztree}
+  \node {$+$}
+    child { node {$+$}
+        child { node{\lstinline{1}} }
+        child { node{\lstinline{2}} }
+    }
+    child { node {\lstinline{3}} };
+\end{tikztree}
+
+\column{0.5\textwidth}
+\begin{tikztree}
+  \node {$+$}
+    child { node {\lstinline{1}} }
+    child { node {$+$}
+        child { node{\lstinline{2}} }
+        child { node{\lstinline{3}} }
+    };
+\end{tikztree}
+\end{columns}
+~\\~\\
+The result in both cases is 6
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Ambiguity}
+
+With ambiguity either parse tree/AST is correct\\~\\
+
+Therefore, the implementer can decide which one they want to use\\~\\
+
+What happens if we use $-$ instead of $+$?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{AST Evaluation (2)}
+
+Again, calling \lstinline{eval} with the root node, what is the result?
+
+\begin{columns}[onlytextwidth]
+\column{0.5\textwidth}
+\begin{tikztree}
+  \node {$-$}
+    child { node {$-$}
+        child { node{\lstinline{1}} }
+        child { node{\lstinline{2}} }
+    }
+    child { node {\lstinline{3}} };
+\end{tikztree}
+
+The result is -4
+\column{0.5\textwidth}
+\begin{tikztree}
+  \node {$-$}
+    child { node {\lstinline{1}} }
+    child { node {$-$}
+        child { node{\lstinline{2}} }
+        child { node{\lstinline{3}} }
+    };
+\end{tikztree}
+
+The result is 2
+\end{columns}
+~\\~\\
+Now, depending on the implementation you get different results
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title} End Interpreter \hfill
+      Start Unambiguity}
+  \end{beamercolorbox}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Removing Ambiguity}
+
+We have to enforce:
+\begin{itemize}
+  \item Precedence
+  \item Associativity
+\end{itemize}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Precedence Rules}
+
+\begin{enumerate}
+  \item Each level of precedence should be it's own rule\\~\\
+  \item The lowest level of precedence should be the top level rule
+    (highest level of precedence is the last rule)\\~\\
+  \item Each rule should use the next highest level of precedence\\~\\
+  \item The highest level of precedence includes the operands
+\end{enumerate}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our Grammar (Attempt 3)}
+
+Following the rules, our grammar is now:
+\begin{align*}
+T &= \{ +, -, \text{\lstinline{INT}} \}\\
+N &= \{ e, p \}\\
+S &= e\\
+P &= \begin{cases}e \rightarrow e + e \\
+     e \rightarrow e - e\\
+     e \rightarrow p\\
+     p \rightarrow \text{\lstinline{INT}}\end{cases}
+\end{align*}
+But the grammar is still ambiguous 
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Associativity Rules}
+
+Consider $e$ as our current level of precedence and $p$ as the next highest\\~\\
+
+$e \rightarrow e$ \lstinline{OP} $p$, would make it left associative\\~\\
+
+$e \rightarrow p$ \lstinline{OP} $e$, would make it right associative
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our Grammar (Attempt 4)}
+
+We expect left associativity, our grammar is now:
+\begin{align*}
+T &= \{ +, -, \text{\lstinline{INT}} \}\\
+N &= \{ e, p \}\\
+S &= e\\
+P &= \begin{cases}e \rightarrow e + p \\
+     e \rightarrow e - p\\
+     e \rightarrow p\\
+     p \rightarrow \text{\lstinline{INT}}\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Parsing}
+
+Let's use our previous grammar attempt\\~\\
+
+Parse the following input: \lstinline{"1 - 2 - 3"}\\~\\
+
+We have the following terminals: \lstinline{INT} $-$ \lstinline{INT} $-$
+\lstinline{INT}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous Derivation}
+
+\begin{align*}
+e &\Rightarrow e - p\\
+  &\Rightarrow e - p - p\\
+  &\Rightarrow p - p - p\\
+  &\Rightarrow \text{\lstinline{INT}} - p - p\\
+  &\Rightarrow \text{\lstinline{INT}} - \text{\lstinline{INT}} - p\\
+  &\Rightarrow \text{\lstinline{INT}} - \text{\lstinline{INT}} -
+               \text{\lstinline{INT}}
+\end{align*}
+
+This is the only derivation
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous Parse Tree}
+
+\scalebox{0.8}{\begin{minipage}{1.25\textwidth}
+\begin{tikztree}
+  \node {$e$}
+    child { node {$e$} 
+      child { node {$e$}
+        child { node{$p$}
+          child { node{\lstinline{INT}} }
+        }
+      }
+      child { node {$-$} }
+      child { node {$p$} child { node{\lstinline{INT}} }}
+    }
+    child { node {$-$} }
+    child { node {$p$}
+      child { node{\lstinline{INT}} }
+    };
+\end{tikztree}
+\end{minipage}}
+~\\~\\
+What about the corresponding AST?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous AST}
+
+\begin{tikztree}
+  \node {$-$}
+    child { node {$-$}
+        child { node{\lstinline{1}} }
+        child { node{\lstinline{2}} }
+    }
+    child { node {\lstinline{3}} };
+\end{tikztree}
+
+Our interpreter would return \lstinline{-4} as expected
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our Grammar (Attempt 5)}
+
+Let's add multiplication and division:
+
+\begin{align*}
+T &= \{ +, -, *, /, \text{\lstinline{INT}} \}\\
+N &= \{ e, p \}\\
+S &= e\\
+P &= \begin{cases}e \rightarrow e + p \\
+     e \rightarrow e - p\\
+     e \rightarrow e * p\\
+     e \rightarrow e / p\\
+     e \rightarrow p\\
+     p \rightarrow \text{\lstinline{INT}}\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Parsing}
+
+Let's use our previous grammar attempt\\~\\
+
+Parse the following input: \lstinline{"1 - 2 * 3"}\\~\\
+
+We have the following terminals: \lstinline{INT} $-$ \lstinline{INT} $*$
+\lstinline{INT}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous Derivation}
+
+\begin{align*}
+e &\Rightarrow e * p\\
+  &\Rightarrow e - p * p\\
+  &\Rightarrow p - p * p\\
+  &\Rightarrow \text{\lstinline{INT}} - p * p\\
+  &\Rightarrow \text{\lstinline{INT}} - \text{\lstinline{INT}} * p\\
+  &\Rightarrow \text{\lstinline{INT}} - \text{\lstinline{INT}} *
+               \text{\lstinline{INT}}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous Parse Tree}
+
+\begin{tikztree}
+  \node {$e$}
+    child { node {$e$} 
+      child { node {$e$}
+        child { node{$p$}
+          child { node{\lstinline{INT}} }
+        }
+      }
+      child { node {$-$} }
+      child { node {$p$} child { node{\lstinline{INT}} }}
+    }
+    child { node {$*$} }
+    child { node {$p$}
+      child { node{\lstinline{INT}} }
+    };
+\end{tikztree}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous AST}
+
+\begin{tikztree}
+  \node {$*$}
+    child { node {$-$}
+        child { node{\lstinline{1}} }
+        child { node{\lstinline{2}} }
+    }
+    child { node {\lstinline{3}} };
+\end{tikztree}
+
+Our interpreter would return \lstinline{-3} which is wrong\\~\\
+
+How would we fix this?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Precedence Rules}
+
+\begin{enumerate}
+  \item Each level of precedence should be it's own rule\\~\\
+  \item The lowest level of precedence should be the top level rule
+    (highest level of precedence is the last rule)\\~\\
+  \item Each rule should use the next highest level of precedence\\~\\
+  \item The highest level of precedence includes the operands
+\end{enumerate}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our Grammar (Attempt 6)}
+
+We have to add another level of precedence ($t$) for multiplication and division:
+\begin{align*}
+T &= \{ +, -, *, /, \text{\lstinline{INT}} \}\\
+N &= \{ e, t, p \}\\
+S &= e\\
+P &= \begin{cases}e \rightarrow e + t\\
+     e \rightarrow e - t\\
+     e \rightarrow t\\
+     t \rightarrow t * p\\
+     t \rightarrow t / p\\
+     t \rightarrow p\\
+     p \rightarrow \text{\lstinline{INT}}\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Parsing}
+
+Let's use our previous grammar attempt\\~\\
+
+Parse the following input: \lstinline{"1 - 2 * 3"}\\~\\
+
+We have the following terminals: \lstinline{INT} $-$ \lstinline{INT} $*$
+\lstinline{INT}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous Derivation}
+
+\begin{align*}
+e &\Rightarrow e - t\\
+  &\Rightarrow t - t\\
+  &\Rightarrow p - t\\
+  &\Rightarrow \text{\lstinline{INT}} - t\\
+  &\Rightarrow \text{\lstinline{INT}} - t * p\\
+  &\Rightarrow \text{\lstinline{INT}} - p * p\\
+  &\Rightarrow \text{\lstinline{INT}} - \text{\lstinline{INT}} * p\\
+  &\Rightarrow \text{\lstinline{INT}} - \text{\lstinline{INT}} *
+               \text{\lstinline{INT}}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous Parse Tree}
+
+\scalebox{0.8}{\begin{minipage}{1.25\textwidth}
+\begin{tikztree}
+  \node {$e$}
+    child { node {$e$} 
+      child { node {$t$}
+        child { node {$p$}
+          child { node {\lstinline{INT}} }
+        }
+      }
+    }
+    child { node {$-$} }
+    child { node {$t$}
+      child { node{$t$}
+        child { node {$p$}
+          child { node {\lstinline{INT}} }
+        }
+      }
+      child { node{$*$} }
+      child { node{$p$}
+          child { node {\lstinline{INT}} }
+      }
+    };
+\end{tikztree}
+\end{minipage}}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous AST}
+
+\begin{tikztree}
+  \node {$-$}
+    child { node {\lstinline{1}} }
+    child { node {$*$}
+        child { node{\lstinline{2}} }
+        child { node{\lstinline{3}} }
+    };
+\end{tikztree}
+
+Our interpreter would return \lstinline{-5} which is correct
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Grouping and Unary Precedence}
+
+Let's add grouping $()$ and a unary $-$\\~\\
+
+Grouping is always done at the highest level of precedence and calls the lowest
+level precedence rule\\~\\
+
+Unary operators follow the same rules as others, except there is no
+associativity (so it should call itself)
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Our Completed Grammar}
+
+\small
+\begin{align*}
+T &= \{ +, -, *, /, (, ), \text{\lstinline{INT}} \}\\
+N &= \{ e, t, f, p \}\\
+S &= e\\
+P &= \begin{cases}e \rightarrow e + t\\
+     e \rightarrow e - t\\
+     e \rightarrow t\\
+     t \rightarrow t * f\\
+     t \rightarrow t / f\\
+     t \rightarrow f\\
+     f \rightarrow - f\\
+     f \rightarrow p\\
+     p \rightarrow ( e )\\
+     p \rightarrow \text{\lstinline{INT}}\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Grammar Question}
+
+Consider the grammar:
+\begin{align*}
+T &= \{ \text{\lstinline{IF}}, \text{\lstinline{ELSE}} \}\\
+N &= \{ ifstmt, expr, stmt \}\\
+S &= stmt\\
+P &= \begin{cases}stmt \rightarrow ifstmt\\
+     ifstmt \rightarrow \text{\lstinline{IF}} \; expr \; stmt\\
+     ifstmt \rightarrow \text{\lstinline{IF}} \; expr \; stmt \;
+                        \text{\lstinline{ELSE}} \; stmt\end{cases}
+\end{align*}
+
+Is this ambiguous?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Grammar Answer}
+
+Yes, it is ambiguous\\~\\
+
+Consider the \alert{sentential form}:\\
+\lstinline{IF} $expr$ \lstinline{IF} $expr$ $stmt$ \lstinline{ELSE}
+$stmt$\\~\\
+
+We have two leftmost derivations of this form
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Previous Derivations}
+
+\begin{align*}
+stmt &\Rightarrow ifstmt\\
+     &\Rightarrow \text{\lstinline{IF}} \; expr \; stmt\\
+     &\Rightarrow \text{\lstinline{IF}} \; expr \; ifstmt\\
+     &\Rightarrow \text{\lstinline{IF}} \; expr \; \text{\lstinline{IF}} \; expr
+                  \; stmt \; \text{\lstinline{ELSE}} \; stmt\\
+\end{align*}
+\begin{align*}
+stmt &\Rightarrow ifstmt\\
+     &\Rightarrow \text{\lstinline{IF}} \; expr \; stmt \;
+                  \text{\lstinline{ELSE}} \; stmt\\
+     &\Rightarrow \text{\lstinline{IF}} \; expr \; ifstmt \;
+                  \text{\lstinline{ELSE}} \; stmt\\
+     &\Rightarrow \text{\lstinline{IF}} \; expr \; \text{\lstinline{IF}} \; expr
+                  \; stmt \; \text{\lstinline{ELSE}} \; stmt\\
+\end{align*}
+This is called the dangling else problem
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Dangling Else Example}
+
+Consider the following Java code:
+
+\begin{lstlisting}[backgroundcolor=\color{solarizedRebase02}]
+if (x > 0) if (x > 3) x = 3 else x = 0
+\end{lstlisting}
+~\\
+When \lstinline{x = 1} the final value of \lstinline{x} depends on our parse
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Removing the Dangling Else}
+
+There are 4 main approaches:
+\vspace{1em}
+\begin{itemize}
+  \item Add an \lstinline{endif} statement (like in VHDL)\\~\\
+  \item Specify the meaning in the language specification and leave it up the
+    implementations (like Java, which always does inner)\\~\\
+  \item Introduce indenting into the grammar (like Python)\\~\\
+  \item Require every \lstinline{if} to have an \lstinline{else} (like Haskell)
+\end{itemize}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title} End Unambiguity \hfill
+      Start Techniques}
+  \end{beamercolorbox}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Top-Down Parsing}
+
+Consider the grammar:
+\begin{align*}
+T &= \{ \text{\lstinline{0}}, \text{\lstinline{1}} \}\\
+N &= \{ s, b \}\\
+S &= s\\
+P &= \begin{cases}s \rightarrow \text{\lstinline{1}} b \text{\lstinline{0}}\\
+  s \rightarrow \text{\lstinline{0}} b \text{\lstinline{1}}\\
+  b \rightarrow \text{\lstinline{1}} \text{\lstinline{0}}\\
+  b \rightarrow \text{\lstinline{1}} \text{\lstinline{1}}\end{cases}
+\end{align*}
+
+Let's do our leftmost derivation one token at a time\\~\\
+
+This is called \alert{top-down parsing}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Top-Down Parse (1)}
+
+Current token: \lstinline{1}
+\begin{align*}
+s &\Rightarrow \text{\lstinline{1}} b \text{\lstinline{0}}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Top-Down Parse (2)}
+
+Current token: \lstinline{1}
+\begin{align*}
+s &\Rightarrow \text{\lstinline{1}} b \text{\lstinline{0}}\\
+s &\Rightarrow \text{\lstinline{1}} \text{\lstinline{1}} \text{\lstinline{0}}
+               \text{\lstinline{0}}
+\end{align*}
+
+This is a guess since we don't know the next token
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Top-Down Parse (3)}
+
+Current token: \lstinline{1}\\~\\
+
+Our previous guess was wrong, so we backtrack to
+\begin{align*}
+s &\Rightarrow \text{\lstinline{1}} b \text{\lstinline{0}}\\
+\end{align*}
+And guess again
+\begin{align*}
+s &\Rightarrow \text{\lstinline{1}} b \text{\lstinline{0}}\\
+s &\Rightarrow \text{\lstinline{1}} \text{\lstinline{1}} \text{\lstinline{1}}
+               \text{\lstinline{0}}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Top-Down Parse (4)}
+
+Current token: \lstinline{0}\\~\\
+
+\begin{align*}
+s &\Rightarrow \text{\lstinline{1}} b \text{\lstinline{0}}\\
+s &\Rightarrow \text{\lstinline{1}} \text{\lstinline{1}} \text{\lstinline{1}}
+               \text{\lstinline{0}}
+\end{align*}
+
+This is the last token\\~\\
+
+Therefore \lstinline{1110} is valid in our grammar
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Recursive Descent Parsing}
+
+An example of a top-down parser is a \alert{recursive descent parser}\\~\\
+
+Translating the grammar follows these rules:
+\begin{itemize}
+  \item Each non-terminal turns into a function, the body turns into the
+    production
+  \item Each non-terminal in the production is a function call to the
+    corresponding non-terminal
+  \item Each terminal in the production is a call to the lexer's \lstinline{consume} with
+    the terminal as the argument\\~\\
+\end{itemize}
+
+You can use \lstinline{inspect} with a terminal as an argument to check the
+current token and decide which rule to follow\\~\\
+
+There could be backtracking as well if you need it
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Implementing Our Grammar}
+
+Let's implement our first rule $e \rightarrow e + t$\\~\\
+
+One implementation is the following:
+
+\begin{lstlisting}[backgroundcolor=\color{solarizedRebase02}]
+public void E() {
+  E();
+  consume("+");
+  T();
+}
+\end{lstlisting}
+~\\
+Do you see the major problem with this?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Removing Left Recursion}
+
+Left recursion leads to infinite recursion in our function\\~\\
+
+We can remove left recursion in grammars of the form:
+\begin{align*}
+P &= \begin{cases}a \rightarrow a x\\
+  a \rightarrow y\end{cases}
+\end{align*}
+
+where $a$ is a non-terminal, $x$ and $y$ are any sequence of
+terminals/non-terminals\\~\\
+
+By replacing it with:
+\begin{align*}
+P &= \begin{cases}a \rightarrow y a'\\
+  a' \rightarrow x a'\\
+  a' \rightarrow \varepsilon \text{} \end{cases}
+\end{align*}
+Note that $\varepsilon$ represents no symbols
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Removing Left Recursion Question}
+
+Remove left recursion from our rule:
+\begin{align*}
+P &= \begin{cases}e \rightarrow e + t\\
+  e \rightarrow t\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Removing Left Recursion Answer}
+
+Following the rules we would replace it with:
+\begin{align*}
+P &= \begin{cases}e \rightarrow t \; e'\\
+  e' \rightarrow + \; t \; e'\\
+  e' \rightarrow \varepsilon \text{} \end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title} End Techniques \hfill Start
+      EBNF}
+  \end{beamercolorbox}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Grammar Equivalence}
+
+Let's demonstrate that the grammars are equivalent:
+\begin{align*}
+P &= \begin{cases}a \rightarrow a x\\
+  a \rightarrow y\end{cases}
+\end{align*}
+
+\begin{align*}
+P &= \begin{cases}a \rightarrow y a'\\
+  a' \rightarrow x a'\\
+  a' \rightarrow \varepsilon \text{} \end{cases}
+\end{align*}
+
+What are some example derivations?
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Extended Backus-Naur Form}
+
+$y$, $yx$, $yxx$, $yxxx$\\~\\
+
+If $x$ and $y$ were just characters, this would be the same as the regular
+expression \lstinline{yx*}\\~\\
+
+\alert{Extended Backus-Naur Form} (EBNF) is just that, it's BNF with regular
+expression operations (\lstinline{+}, \lstinline{*}, \lstinline{()},
+\lstinline{?})
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{EBNF Example}
+
+Assume the grammar:
+\begin{align*}
+T &= \{ \text{\lstinline{A}}, \text{\lstinline{B}}, \text{\lstinline{C}} \}\\
+N &= \{ a, x \}\\
+S &= a\\
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; x \;
+     \text{\lstinline{C}}\end{cases}
+\end{align*}
+
+Let's consider some variations for the rule $x$ in BNF and EBNF
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{EBNF Variation (1)}
+
+The following productions are equivalent:
+\begin{align*}
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; x \;
+     \text{\lstinline{C}}\\
+     x \rightarrow x \; \text{\lstinline{B}}\\
+     x \rightarrow \varepsilon \end{cases}
+\end{align*}
+\begin{align*}
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; x \;
+     \text{\lstinline{C}}\\
+     x \rightarrow \text{\lstinline{B}}* \end{cases}
+\end{align*}
+\begin{align*}
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; \text{\lstinline{B}}* \;
+     \text{\lstinline{C}}\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{EBNF Variation (2)}
+
+The following productions are equivalent:
+\begin{align*}
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; x \;
+     \text{\lstinline{C}}\\
+     x \rightarrow \text{\lstinline{B}}\\
+     x \rightarrow \varepsilon \end{cases}
+\end{align*}
+\begin{align*}
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; x \;
+     \text{\lstinline{C}}\\
+     x \rightarrow \text{\lstinline{B}}? \end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{EBNF Variation (3)}
+
+The following productions are equivalent:
+\begin{align*}
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; x \;
+     \text{\lstinline{C}}\\
+     x \rightarrow \text{\lstinline{B}} y\\
+     y \rightarrow \text{\lstinline{B}} y\\
+     y \rightarrow \varepsilon \end{cases}
+\end{align*}
+\begin{align*}
+P &= \begin{cases}a \rightarrow \text{\lstinline{A}} \; x \;
+     \text{\lstinline{C}}\\
+     x \rightarrow \text{\lstinline{B}}+ \end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{EBNF Implementation Example}
+
+For recursive descent parsers $*$ translates to a \lstinline{while} loop, $?$
+translates to an \lstinline{if} statement
+\begin{align*}
+P &= \begin{cases}x \rightarrow \text{\lstinline{B}}* \end{cases}
+\end{align*}
+\begin{lstlisting}[backgroundcolor=\color{solarizedRebase02}]
+public void x() {
+  while (inspect("B")) { consume("B"); }
+}
+\end{lstlisting}
+\begin{align*}
+P &= \begin{cases}x \rightarrow \text{\lstinline{B}}? \end{cases}
+\end{align*}
+\begin{lstlisting}[backgroundcolor=\color{solarizedRebase02}]
+public void x() {
+  if (inspect("B")) { consume("B"); }
+}
+\end{lstlisting}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{EBNF Question}
+
+Consider our rewritten productions:
+\begin{align*}
+P &= \begin{cases}e \rightarrow t \; e'\\
+  e' \rightarrow + \; t \; e'\\
+  e' \rightarrow \varepsilon \text{} \end{cases}
+\end{align*}
+Let's convert this grammar to EBNF
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{EBNF Answer}
+
+Recognize that $e'$ can be transformed:
+\begin{align*}
+P &= \begin{cases}e \rightarrow t \; (+ \; t)*\end{cases}
+\end{align*}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Converting Our Grammar to EBNF}
+
+We also have a $-$ at that level of precedence:
+\begin{align*}
+P &= \begin{cases}e \rightarrow t \; (+ \; t)*\\
+     e \rightarrow t \; (- \; t)*\end{cases}
+\end{align*}
+
+We can factor out the common parts of both productions
+\begin{align*}
+P &= \begin{cases}e \rightarrow t \; ((+ \; t) \; | \; (- \; t))*\end{cases}
+\end{align*}
+\begin{align*}
+P &= \begin{cases}e \rightarrow t \; ((+|-) \; t)*\end{cases}
+\end{align*}
+
+The production is now in a form that's easily translated into a recursive
+descent parser
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{EBNF for Associativity}
+
+Let's specify our previous associativity rules in EBNF\\~\\
+
+Consider $e$ as the current level of precedence and $p$ is the next highest
+level of precedence\\~\\
+
+$e \rightarrow p \;($\lstinline{OP} $p )*$ is left associative\\~\\
+
+$e \rightarrow p \;($\lstinline{OP} $e )?$ is right associative
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title} End EBNF \hfill Start
+      Language Theory}
+  \end{beamercolorbox}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{Deterministic Top-Down Parsing}
+
+We can have a deterministic recursive descent parser if we have no backtracking
+\\~\\
+
+To avoid backtracking, we make only correct guesses\\~\\
+
+To make only correct guesses, we restrict the grammar so we can always choose
+the correct next step based on the next token
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}
+\frametitle{LL(1)}
+
+$LL$ is the class of grammars you've been parsing
+
+\begin{description}
+  \item[\alert{L}] for \alert{l}eft-to-right scan of the input
+  \item[\alert{L}] for \alert{l}eftmost derivation
+\end{description}
+~\\
+An $LL(k)$ grammar can be parsed top-down with no backtracking looking only at
+the next $k$ symbols in the input\\~\\
+
+$LL(1)$ can be parsed with a recursive descent parser with a one token
+(or~terminal) look-ahead
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[plain, noframenumbering]
+  \begin{beamercolorbox}[wd=\paperwidth, sep=2em]{solarizedcolorbox}
+    {\usebeamerfont{title}\usebeamercolor[fg]{title} End Language Theory}
+  \end{beamercolorbox}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}
